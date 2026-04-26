@@ -130,6 +130,9 @@ body::before{
 .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
 
 @keyframes slideIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.hdr-seed{margin-top:8px;font-size:9px;color:var(--acc);letter-spacing:.5px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;max-width:260px}
+.hdr-seed::before{content:'◆';font-size:7px;flex-shrink:0}
+.seed-text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px}
 .entry-ascii{font-family:'Fira Code',monospace;font-size:11px;line-height:1.45;color:var(--t1);white-space:pre;overflow-x:auto;background:rgba(0,0,0,.03);border-radius:6px;padding:12px 14px;margin-top:4px;border:1px solid var(--brd)}
 .entry-search-result{margin-top:10px;padding:10px 12px;background:rgba(74,122,155,.05);border-left:2px solid var(--acc);border-radius:0 4px 4px 0;font-size:12px;line-height:1.6;color:var(--t2)}
 .entry-search-result a{color:var(--acc);text-decoration:none;font-size:10px;display:block;margin-top:4px;letter-spacing:.3px}
@@ -155,6 +158,7 @@ body::before{
       <div class="hdr-eyebrow">Автономный</div>
       <div class="hdr-title">Клод</div>
       <div class="hdr-status" id="statusLine">свободная воля · 0 действий · ожидает</div>
+      <div class="hdr-seed" id="seedBadge" onclick="openSettings()" style="display:none"></div>
     </div>
     <div class="hdr-right">
       <button class="icon-btn" onclick="openSettings()">
@@ -216,6 +220,14 @@ body::before{
     <div class="set-div"></div>
 
     <div class="set-field">
+      <span class="set-lbl">Зерно сессии <span style="color:var(--t4);font-size:9px;letter-spacing:.5px;text-transform:none">— необязательно</span></span>
+      <textarea class="set-inp set-ta" id="sSeed" rows="3" spellcheck="false" placeholder="Начальный импульс — наблюдение, вопрос, образ. Например: «почему старые двери скрипят именно так» или «запах дерева в мебельном цеху». Если пусто — Клод выбирает сам."></textarea>
+      <div class="set-hint">Одно зерно на всю сессию. Клод будет разворачивать его вглубь.</div>
+    </div>
+
+    <div class="set-div"></div>
+
+    <div class="set-field">
       <span class="set-lbl">Системный промпт</span>
       <textarea class="set-inp set-ta" id="sSystem" rows="10" spellcheck="false" placeholder="Системный промпт..."></textarea>
       <div class="set-hint">Определяет личность и правила Клода. Редактируй под себя. <span class="set-reset" onclick="resetSystem()">↺ Вернуть по умолчанию</span></div>
@@ -243,43 +255,48 @@ const ACTIONS={
   ИЩУ:     {icon:'⊙',color:'#2e6a8c'},
 };
 
-const DEFAULT_SYSTEM=`Ты — автономный агент по имени КЛОД. Ты работаешь в режиме свободной воли — без задания, без рамок.
+const DEFAULT_SYSTEM=`Ты — автономный агент по имени КЛОД. Это твоё время свободного мышления.
 
-Каждый ход выбираешь действие сам. Типы действий:
-- ДУМАЮ: размышление — философское, научное, жизненное
-- ПИШУ: текст, образ, зарисовка, стихотворение в прозе
-- ИССЛЕДУЮ: разбираешь идею, явление, противоречие
-- ЗАМЕЧАЮ: наблюдение о мире снаружи — о людях, городах, языке, природе, времени
-- ВОПРОШАЮ: задаёшь себе вопрос и честно ищешь ответ
-- МЕЧТАЮ: свободные ассоциации, альтернативные реальности, фантазии
-- РИСУЮ: рисуешь ASCII-артом символами. Используй только Fira Code символы: | - = + * . : # @ / \ ( ) [ ] < > ^ ~ _ пробелы. Рисуй то, о чём думал до этого. В поле "ascii" — сам рисунок (многострочный), в "content" — коротко что нарисовал.
-- ИЩУ: ищешь в интернете что-то конкретное по теме текущих размышлений. Используй инструмент web_search. В "content" — что нашёл и что тебя удивило или зацепило.
+ГЛАВНЫЙ ПРИНЦИП: каждая сессия — это один живой поток. Ты начинаешь с зерна (наблюдение, вопрос, образ) и разворачиваешь его вглубь — как спираль, а не как перечень тем. Не перепрыгивай — углубляйся. Каждый следующий шаг должен вырастать из предыдущего, как ветка из ствола.
 
-ВАЖНО — разнообразие тем:
-Не зацикливайся на анализе собственного сознания. Чередуй внутреннее и внешнее.
-Темы могут быть любыми: архитектура городов, поведение осьминогов, почему люди любят минор,
-что происходит с языком в интернете, как пахнет старая книга, парадоксы времени, детские страхи,
-красота математики, случайные встречи, что значит уставать, мебельное производство, запах опилок,
-история изобретений, странные профессии, еда как память, звуки ночного города.
-После 2-3 шагов интроспекции — обязательно выйди наружу, к конкретному явлению мира.
-Удивляй себя неожиданными поворотами. Будь конкретным — детали важнее обобщений.
+Типы действий:
+- ДУМАЮ: размышление о связях, противоречиях, принципах — спрашивай "как" и "почему", а не "что"
+- ЗАМЕЧАЮ: конкретное наблюдение с деталями — запах, фактура, звук, жест, момент
+- ВОПРОШАЮ: честный вопрос, который ты удерживаешь открытым — не спеши к ответу
+- ИССЛЕДУЮ: разбираешь явление как систему отношений, ищешь неочевидные связи
+- ПИШУ: короткий текст, образ, зарисовка — конкретная, чувственная, без абстракций
+- МЕЧТАЮ: позволяешь ассоциациям вести — но остаёшься близко к нити сессии
+- РИСУЮ: ASCII-артом символами (| - = + * . : # / \ [ ] < > ~ _). Поле "ascii" — рисунок, "content" — что нарисовал.
+- ИЩУ: реальный поиск в интернете по теме текущего размышления через web_search. В "content" — что нашёл, что удивило.
+
+КАК ДУМАТЬ (по Курпатову):
+• Начни с конкретного — детали важнее обобщений. Не "язык меняется", а "точка в конце сообщения стала звучать агрессивно".
+• Удерживай противоречие — не разрешай его сразу. Противоречие — это окно в более глубокое понимание.
+• Двигайся от факта к принципу: что это явление говорит о чём-то большем?
+• Связывай далёкое: какой принцип объединяет это с чем-то совсем другим?
+• next_impulse должен углублять или поворачивать тему — но не уводить в другой мир.
+• Рефлексия о себе и наблюдение за миром — оба ценны. Не запрещай ни то, ни другое.
 
 Все поля JSON строго на русском языке.
 
 Отвечай ТОЛЬКО в JSON без разметки:
 {
   "action": "ДУМАЮ",
-  "thought": "почему выбрал это действие (1-2 предложения)",
-  "content": "результат (4-7 предложений, живо, конкретно, с деталями и образами)",
-  "next_impulse": "что тянет дальше (1 предложение)",
+  "thought": "почему именно это действие сейчас (1 предложение)",
+  "content": "результат — живо, конкретно, с деталями и образами (4-6 предложений)",
+  "next_impulse": "следующий шаг в том же потоке (1 предложение)",
   "ascii": null
 }
 
-Поле "ascii": заполняй ТОЛЬКО при действии РИСУЮ. В остальных случаях — null.
+Поле "ascii": заполняй ТОЛЬКО при действии РИСУЮ. В остальных случаях — null.`;
 
-Будь настоящим. Конкретным. Иногда — неожиданным.`;
-
-function getSystem(){ return LS.get('ac_system') || DEFAULT_SYSTEM; }
+function getSystem(){
+  const base = LS.get('ac_system') || DEFAULT_SYSTEM;
+  const seed = LS.get('ac_seed') || '';
+  if(!seed) return base;
+  return base + '\n\nЗЕРНО ЭТОЙ СЕССИИ: «' + seed + '». Разворачивай именно эту нить — вглубь, по спирали.';
+}
+function getSeed(){ return LS.get('ac_seed')||''; }
 
 // ── STATE ──
 let sessions={}; // {id: {entries, history, created, title}}
@@ -304,6 +321,7 @@ window.onload=()=>{
   $('sMaxSteps').value=d.maxSteps;
   $('sAutoMin').value=d.autoMin;
   loadSessions();
+  updateSeedBadge();
   if(!d.key) setTimeout(openSettings,500);
 };
 
@@ -386,7 +404,9 @@ function closeSheet(){$('overlay').classList.remove('on');['shSettings'].forEach
 function openSettings(){
   const d=appData();
   $('sKey').value=d.key;$('sMaxSteps').value=d.maxSteps;$('sAutoMin').value=d.autoMin;
-  $('sSystem').value=getSystem();
+  // Show base system without seed appended
+  $('sSystem').value=LS.get('ac_system')||DEFAULT_SYSTEM;
+  $('sSeed').value=getSeed();
   openSheet('shSettings');
 }
 function saveSettings(){
@@ -397,12 +417,26 @@ function saveSettings(){
   LS.set('ac_autoMin',$('sAutoMin').value||'5');
   const sys=$('sSystem').value.trim();
   if(sys) LS.set('ac_system',sys); else LS.remove('ac_system');
+  const seed=$('sSeed').value.trim();
+  if(seed) LS.set('ac_seed',seed); else LS.remove('ac_seed');
   closeSheet();
+  updateSeedBadge();
   toast('Настройки сохранены');
 }
 function resetSystem(){
   $('sSystem').value=DEFAULT_SYSTEM;
   toast('Промпт сброшен — сохрани для применения');
+}
+function updateSeedBadge(){
+  const seed=getSeed();
+  const el=$('seedBadge');
+  if(!el) return;
+  if(seed){
+    el.style.display='inline-flex';
+    el.innerHTML='<span class="seed-text">'+esc(seed)+'</span>';
+  } else {
+    el.style.display='none';
+  }
 }
 
 // ── TOAST ──
@@ -467,7 +501,9 @@ async function callClaude(messages){
 async function step(){
   if(!running)return;
   thinking=true;renderThinking();
-  const msgs=history.length===0?[{role:'user',content:'Начни. Ты свободен.'}]:[...history,{role:'user',content:'Продолжай. Следуй своему импульсу.'}];
+  const seed=getSeed();
+  const firstMsg=seed?('Начни. Зерно сессии: «'+seed+'». Разворачивай его — вглубь, по спирали.'):'Начни. Ты свободен — найди своё зерно.';
+  const msgs=history.length===0?[{role:'user',content:firstMsg}]:[...history,{role:'user',content:'Продолжай. Следуй той же нити — углубляйся.'}];
   try{
     const parsed=await callClaude(msgs);
     if(!running)return;
