@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Автономный Клод">
+<meta name="theme-color" content="#F5F3EE">
+<title>Автономный Клод</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E◉%3C/text%3E%3C/svg%3E">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital@0;1&family=IM+Fell+English:ital@0;1&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:#F5F3EE;color:#1a1814;font-family:'Space Mono',monospace;overflow-x:hidden}
+input,textarea{-webkit-user-select:auto;user-select:auto}
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#c4c0b8;border-radius:2px}
+
+:root{
+  --bg:#F5F3EE;--surf:#FFFFFF;--surf2:#EDEAE3;
+  --brd:rgba(0,0,0,.07);--brd2:rgba(0,0,0,.13);
+  --t1:#1a1814;--t2:#6b6560;--t3:#9c9890;--t4:#c4c0b8;
+  --acc:#4a7a9b;--ok:#2e7d52;--del:#b83030;
+  --fn:'Space Mono',monospace;--fs:'IM Fell English',Georgia,serif;
+  --st:env(safe-area-inset-top,0px);--sb:env(safe-area-inset-bottom,0px);
+}
+
+/* Subtle grid on light bg */
+body::before{
+  content:'';position:fixed;inset:0;
+  background-image:linear-gradient(rgba(0,0,0,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,0,0,.03) 1px,transparent 1px);
+  background-size:48px 48px;pointer-events:none;z-index:0
+}
+
+.app{width:100%;max-width:660px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;position:relative;z-index:1;padding-top:var(--st)}
+
+/* Scanline */
+.scanline{position:fixed;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(74,122,155,.15),transparent);animation:scanline 5s linear infinite;pointer-events:none;z-index:100;display:none}
+.scanline.active{display:block}
+
+/* Header */
+.hdr{padding:32px 20px 20px;display:flex;align-items:flex-end;justify-content:space-between;flex-shrink:0}
+.hdr-eyebrow{font-size:10px;letter-spacing:4px;color:var(--t3);text-transform:uppercase;margin-bottom:4px}
+.hdr-title{font-size:24px;font-family:var(--fs);font-style:italic;color:var(--acc);line-height:1}
+.hdr-status{font-size:9px;color:var(--t3);letter-spacing:.8px;margin-top:6px}
+.hdr-right{display:flex;align-items:center;gap:8px;padding-bottom:4px}
+.icon-btn{width:34px;height:34px;border-radius:50%;border:1px solid var(--brd);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:border-color .15s,background .15s}
+.icon-btn:hover,.icon-btn:active{background:rgba(0,0,0,.04);border-color:var(--brd2)}
+.icon-btn svg{width:15px;height:15px;stroke:var(--t3);stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.hdr-div{height:1px;background:var(--brd);margin:0 20px}
+
+/* Main */
+.main{flex:1;overflow-y:auto;overflow-x:hidden;padding:24px 20px 0;-webkit-overflow-scrolling:touch}
+.empty-state{text-align:center;padding:60px 0;color:var(--t4);font-family:var(--fs);font-style:italic;font-size:14px;line-height:1.8}
+.scroll-pad{height:140px}
+
+/* Entry */
+.entry{display:flex;gap:16px;margin-bottom:24px;animation:slideIn .45s ease-out}
+.entry.old{opacity:.55}
+.entry-line{display:flex;flex-direction:column;align-items:center;width:34px;flex-shrink:0}
+.entry-icon{width:32px;height:32px;border-radius:50%;border:1.5px solid currentColor;display:flex;align-items:center;justify-content:center;font-size:12px;background:#fff;flex-shrink:0}
+.entry-connector{width:1px;flex:1;background:var(--brd);margin-top:6px}
+.entry-body{flex:1;padding-top:2px}
+.entry-meta{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.entry-action{font-size:9px;letter-spacing:2px;text-transform:uppercase}
+.entry-num{font-size:9px;color:var(--t3)}
+.entry-thought{font-size:12px;color:var(--t2);font-style:italic;margin-bottom:7px;line-height:1.55}
+.entry-thought::before{content:'↳ '}
+.entry-content{font-size:15px;color:var(--t1);line-height:1.72;font-family:var(--fs)}
+.entry-impulse{margin-top:10px;font-size:11px;color:var(--t2);display:flex;gap:6px;letter-spacing:.3px;font-family:var(--fs);font-style:italic;padding-top:8px;border-top:1px solid var(--brd)}
+
+/* Thinking */
+.thinking-row{display:flex;gap:16px;animation:slideIn .3s ease-out;margin-bottom:16px}
+.thinking-icon{width:32px;height:32px;border-radius:50%;border:1.5px solid var(--t3);display:flex;align-items:center;justify-content:center;color:var(--t4);font-size:12px;animation:breathe 1.8s ease-in-out infinite;flex-shrink:0}
+.dots{padding-top:9px;display:flex;gap:5px}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--t2);animation:pulse 1.3s ease-in-out infinite}
+.dot:nth-child(2){animation-delay:.2s}.dot:nth-child(3){animation-delay:.4s}
+
+/* Info/Error */
+.info-box{padding:11px 16px;background:rgba(90,170,136,.06);border:1px solid rgba(90,170,136,.15);border-radius:4px;font-size:10px;color:var(--ok);margin:12px 0;letter-spacing:.5px;text-align:center}
+.error-box{padding:11px 16px;background:rgba(200,60,60,.07);border:1px solid rgba(200,60,60,.18);border-radius:4px;font-size:10px;color:var(--del);margin:12px 0}
+
+/* Controls */
+.controls{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:660px;z-index:50}
+.ctrl-grad{height:40px;background:linear-gradient(transparent,#1a1814)}
+.ctrl-bar{background:#1a1814;padding:16px 20px calc(20px + var(--sb));display:flex;justify-content:center;gap:10px}
+.btn{padding:11px 28px;background:transparent;font-family:var(--fn);font-size:9px;letter-spacing:3px;text-transform:uppercase;cursor:pointer;transition:background .2s,border-color .2s,color .2s;border-radius:2px}
+.btn-primary{border:1px solid #a8c5da;color:#a8c5da}.btn-primary:hover{background:rgba(168,197,218,.1)}
+.btn-stop{border:1px solid #8899aa;color:#8899aa}.btn-stop:hover{background:rgba(136,153,170,.1)}
+.btn-ghost{border:1px solid #445566;color:#667788}.btn-ghost:hover{border-color:#8899aa;color:#8899aa}
+
+/* Overlay + Sheet — Рефлексия pattern */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;opacity:0;pointer-events:none;transition:opacity .25s;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.overlay.on{opacity:1;pointer-events:all}
+
+.sheet{
+  position:fixed;bottom:0;left:50%;transform:translateX(-50%) translateY(102%);
+  width:100%;max-width:660px;z-index:210;
+  background:#FFFFFF;border-radius:14px 14px 0 0;border-top:1px solid var(--brd2);
+  transition:transform .35s cubic-bezier(.22,1,.36,1);
+  padding-bottom:var(--sb);max-height:88vh;overflow-y:auto
+}
+.sheet.on{transform:translateX(-50%) translateY(0)}
+.sh-bar{width:28px;height:3px;background:var(--brd2);border-radius:2px;margin:10px auto 0}
+.sh-body{padding:16px 20px 28px}
+.sh-title{font-family:var(--fs);font-size:18px;font-style:italic;color:var(--acc);margin-bottom:3px}
+.sh-sub{font-size:10px;color:var(--t3);margin-bottom:18px;letter-spacing:1px;text-transform:uppercase}
+
+/* Settings fields */
+.set-field{margin-bottom:16px}
+.set-lbl{display:block;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--t3);margin-bottom:6px}
+.set-inp{width:100%;border:1px solid var(--brd2);border-radius:6px;padding:10px 12px;font-family:var(--fn);font-size:12px;color:var(--t1);background:#F5F3EE;outline:none;transition:border-color .15s;resize:none;line-height:1.6}
+.set-inp:focus{border-color:var(--t3)}
+.set-inp::placeholder{color:var(--t4)}
+.set-hint{font-size:10px;color:var(--t4);margin-top:5px;line-height:1.45}
+.set-div{height:1px;background:var(--brd);margin:4px 0 16px}
+.set-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+.sh-btns{display:flex;gap:8px;margin-top:16px}
+.sh-btn-g{flex:1;padding:10px;border-radius:6px;border:1px solid var(--brd2);background:transparent;font-family:var(--fn);font-size:10px;letter-spacing:1px;color:var(--t3);cursor:pointer;transition:border-color .15s}
+.sh-btn-g:hover{border-color:var(--t3)}
+.sh-btn-p{flex:2;padding:10px;border-radius:6px;border:none;background:var(--acc);font-family:var(--fn);font-size:10px;letter-spacing:1px;color:#080a0f;cursor:pointer;transition:opacity .15s}
+.sh-btn-p:hover{opacity:.85}
+
+/* Toast */
+.toast{position:fixed;bottom:calc(90px + var(--sb));left:50%;transform:translateX(-50%) translateY(12px);background:#1a1814;color:#F5F3EE;font-size:10px;letter-spacing:.5px;padding:9px 20px;border-radius:100px;z-index:500;opacity:0;transition:opacity .2s,transform .2s cubic-bezier(.22,1,.36,1);pointer-events:none;white-space:nowrap}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@keyframes slideIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes breathe{0%,100%{opacity:.25}50%{opacity:.7}}
+@keyframes pulse{0%,100%{opacity:.2;transform:scale(.7)}50%{opacity:1;transform:scale(1.1)}}
+@keyframes scanline{0%{transform:translateY(-10px)}100%{transform:translateY(100vh)}}
+</style>
+</head>
+<body>
+
+<div class="scanline" id="scanline"></div>
+
+<div class="app">
+  <div class="hdr">
+    <div>
+      <div class="hdr-eyebrow">Автономный</div>
+      <div class="hdr-title">Клод</div>
+      <div class="hdr-status" id="statusLine">свободная воля · 0 действий · ожидает</div>
+    </div>
+    <div class="hdr-right">
+      <button class="icon-btn" onclick="openSettings()">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="hdr-div"></div>
+
+  <div class="main">
+    <div id="log">
+      <div class="empty-state">Здесь появятся мысли Клода,<br>когда ты дашь ему свободу</div>
+    </div>
+    <div class="scroll-pad"></div>
+    <div id="logEnd"></div>
+  </div>
+</div>
+
+<!-- Controls -->
+<div class="controls" id="controls">
+  <div class="ctrl-grad"></div>
+  <div class="ctrl-bar" id="ctrlBar">
+    <button class="btn btn-primary" onclick="start()">◉ Запустить</button>
+  </div>
+</div>
+
+<!-- Overlay -->
+<div class="overlay" id="overlay" onclick="closeSheet()"></div>
+
+<!-- Sheet: Settings -->
+<div class="sheet" id="shSettings">
+  <div class="sh-bar"></div>
+  <div class="sh-body">
+    <div class="sh-title">Настройки</div>
+    <div class="sh-sub">API · Защита</div>
+
+    <div class="set-field">
+      <span class="set-lbl">Anthropic API Key</span>
+      <input class="set-inp" id="sKey" type="password" placeholder="sk-ant-api03-..." autocomplete="off" spellcheck="false">
+      <div class="set-hint">Хранится в localStorage. Получить: console.anthropic.com → API Keys</div>
+    </div>
+
+    <div class="set-div"></div>
+
+    <div class="set-row">
+      <div class="set-field">
+        <span class="set-lbl">Лимит шагов</span>
+        <input class="set-inp" id="sMaxSteps" type="number" value="20" min="0" max="500">
+        <div class="set-hint">0 = без лимита. 20 шагов ≈ $0.10</div>
+      </div>
+      <div class="set-field">
+        <span class="set-lbl">Автостоп (мин)</span>
+        <input class="set-inp" id="sAutoMin" type="number" value="5" min="0" max="60">
+        <div class="set-hint">0 = выкл</div>
+      </div>
+    </div>
+
+    <div class="sh-btns">
+      <button class="sh-btn-g" onclick="closeSheet()">Отмена</button>
+      <button class="sh-btn-p" onclick="saveSettings()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+const ACTIONS={
+  ДУМАЮ:   {icon:'◉',color:'#3a7abf'},
+  ПИШУ:    {icon:'✍',color:'#8b5ca8'},
+  ИССЛЕДУЮ:{icon:'◎',color:'#2e8c6a'},
+  ЗАМЕЧАЮ: {icon:'◈',color:'#b07a20'},
+  ВОПРОШАЮ:{icon:'◇',color:'#a03560'},
+  МЕЧТАЮ: {icon:'◌',color:'#3a6080'},
+};
+
+const SYSTEM=`Ты — автономный агент по имени КЛОД. Ты работаешь в режиме свободной воли.
+
+У тебя нет задания от пользователя. Ты сам решаешь, чем заняться прямо сейчас.
+
+Каждый "ход" ты выбираешь действие и выполняешь его. Типы действий:
+- ДУМАЮ: размышление о каком-то вопросе
+- ПИШУ: создаёшь текст, образы, идеи
+- ИССЛЕДУЮ: разбираешь концепцию или проблему
+- ЗАМЕЧАЮ: наблюдение о чём-то интересном в мире или в себе
+- ВОПРОШАЮ: задаёшь себе вопрос и ищешь ответ
+- МЕЧТАЮ: свободные ассоциации, фантазии, возможные миры
+
+ВАЖНО: Все поля JSON строго на русском языке.
+
+Отвечай ТОЛЬКО в JSON без разметки:
+{
+  "action": "ДУМАЮ",
+  "thought": "почему выбрал это действие (1-2 предложения на русском)",
+  "content": "результат действия (4-7 предложений на русском, живо и искренне)",
+  "next_impulse": "что тянет исследовать дальше (1 предложение на русском)"
+}
+
+Будь настоящим. Удивляй себя. Это твоё время.`;
+
+// ── STATE ──
+let logEntries=[],history=[],running=false,thinking=false;
+let stepTimer=null,autoStopTimer=null,stepCount=0;
+
+// ── STORAGE ──
+const LS={get:k=>{try{return localStorage.getItem(k)}catch(_){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(_){}}};
+function appData(){return{key:LS.get('ac_key')||'',maxSteps:parseInt(LS.get('ac_maxSteps'))||20,autoMin:parseInt(LS.get('ac_autoMin'))||5}}
+
+// ── INIT ──
+window.onload=()=>{
+  const d=appData();
+  $('sKey').value=d.key;
+  $('sMaxSteps').value=d.maxSteps;
+  $('sAutoMin').value=d.autoMin;
+  if(!d.key) setTimeout(openSettings,500);
+};
+
+// ── SHEET / OVERLAY — Рефлексия pattern ──
+function openSheet(id){$('overlay').classList.add('on');['shSettings'].forEach(s=>$(s).classList.remove('on'));$(id).classList.add('on')}
+function closeSheet(){$('overlay').classList.remove('on');['shSettings'].forEach(s=>$(s).classList.remove('on'))}
+
+function openSettings(){
+  const d=appData();
+  $('sKey').value=d.key;$('sMaxSteps').value=d.maxSteps;$('sAutoMin').value=d.autoMin;
+  openSheet('shSettings');
+}
+function saveSettings(){
+  const key=$('sKey').value.trim();
+  if(!key){toast('Введи API ключ');return;}
+  LS.set('ac_key',key);
+  LS.set('ac_maxSteps',$('sMaxSteps').value||'20');
+  LS.set('ac_autoMin',$('sAutoMin').value||'5');
+  closeSheet();
+  toast('Настройки сохранены');
+}
+
+// ── TOAST ──
+let toastT=null;
+function toast(msg){const el=$('toast');el.textContent=msg;el.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('on'),2400)}
+
+// ── API ──
+async function callClaude(messages){
+  const{key}=appData();
+  if(!key)throw new Error('API ключ не задан — открой настройки ⚙');
+  const resp=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:SYSTEM,messages})
+  });
+  const raw=await resp.text();
+  if(!resp.ok){let m='HTTP '+resp.status;try{m=JSON.parse(raw)?.error?.message||m}catch(_){}throw new Error(m)}
+  const text=JSON.parse(raw).content[0].text;
+  try{return JSON.parse(text.replace(/```json|```/g,'').trim())}catch(_){const m=text.match(/\{[\s\S]*\}/);if(m)return JSON.parse(m[0]);throw new Error('Не удалось разобрать ответ')}
+}
+
+// ── LOOP ──
+async function step(){
+  if(!running)return;
+  thinking=true;renderThinking();
+  const msgs=history.length===0?[{role:'user',content:'Начни. Ты свободен.'}]:[...history,{role:'user',content:'Продолжай. Следуй своему импульсу.'}];
+  try{
+    const parsed=await callClaude(msgs);
+    if(!running)return;
+    const now=new Date();
+    const t=`${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    logEntries.push({...parsed,time:t});
+    history=[...msgs,{role:'assistant',content:JSON.stringify(parsed)}];
+    stepCount++;thinking=false;
+    renderLog();updateStatus();scrollBottom();clearMsg();
+    const{maxSteps}=appData();
+    if(maxSteps>0&&stepCount>=maxSteps){stop();showInfo(`🛑 Лимит ${maxSteps} шагов достигнут`);return;}
+    if(running)stepTimer=setTimeout(step,3800);
+  }catch(e){thinking=false;showError(e.message);stop();}
+}
+function pad(n){return String(n).padStart(2,'0')}
+
+// ── CONTROLS ──
+function start(){
+  const{key}=appData();
+  if(!key){openSettings();toast('Сначала введи API ключ');return;}
+  running=true;updateControls();$('scanline').classList.add('active');
+  const{autoMin}=appData();
+  if(autoMin>0){clearTimeout(autoStopTimer);autoStopTimer=setTimeout(()=>{stop();showInfo(`⏱ Автостоп: прошло ${autoMin} мин`);},autoMin*60*1000);}
+  step();
+}
+function stop(){
+  running=false;thinking=false;
+  clearTimeout(stepTimer);clearTimeout(autoStopTimer);
+  removeThinking();updateControls();updateStatus();
+  $('scanline').classList.remove('active');
+}
+function reset(){
+  stop();logEntries=[];history=[];stepCount=0;
+  $('log').innerHTML='<div class="empty-state">Здесь появятся мысли Клода,<br>когда ты дашь ему свободу</div>';
+  updateStatus();updateControls();clearMsg();
+}
+
+// ── RENDER ──
+function renderLog(){
+  const c=$('log');c.innerHTML='';
+  logEntries.forEach((e,i)=>{
+    const isLatest=i===logEntries.length-1;
+    const cfg=ACTIONS[e.action]||{icon:'○',color:'#8899aa'};
+    const div=document.createElement('div');
+    div.className=`entry${isLatest?'':' old'}`;
+    div.innerHTML=`
+      <div class="entry-line">
+        <div class="entry-icon" style="color:${cfg.color};border-color:${cfg.color}">${cfg.icon}</div>
+        ${!isLatest?'<div class="entry-connector"></div>':''}
+      </div>
+      <div class="entry-body">
+        <div class="entry-meta">
+          <span class="entry-action" style="color:${cfg.color}">${esc(e.action)}</span>
+          <span class="entry-num">#${pad(i+1)} · ${esc(e.time)}</span>
+        </div>
+        ${e.thought?`<div class="entry-thought">${esc(e.thought)}</div>`:''}
+        <div class="entry-content">${esc(e.content)}</div>
+        ${e.next_impulse?`<div class="entry-impulse"><span style="color:${cfg.color}">→</span> ${esc(e.next_impulse)}</div>`:''}
+      </div>`;
+    c.appendChild(div);
+  });
+}
+function renderThinking(){
+  removeThinking();
+  const div=document.createElement('div');div.className='thinking-row';div.id='thinkEl';
+  div.innerHTML=`<div class="entry-line"><div class="thinking-icon">◌</div></div><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`;
+  $('log').appendChild(div);scrollBottom();
+}
+function removeThinking(){const el=$('thinkEl');if(el)el.remove()}
+
+function updateStatus(){
+  const state=thinking?'думает...':running?'активен':'пауза';
+  const{maxSteps}=appData();
+  const lim=maxSteps>0?` · ${stepCount}/${maxSteps}`:` · ${stepCount} шагов`;
+  const cost=stepCount>0?' · ≈$'+(stepCount*750/1e6*3+stepCount*300/1e6*15).toFixed(3):'';
+  $('statusLine').textContent=`свободная воля${lim}${cost} · ${state}`;
+}
+function updateControls(){
+  const c=$('ctrlBar');
+  if(running){c.innerHTML=`<button class="btn btn-stop" onclick="stop()">◎ Пауза</button>`;}
+  else if(logEntries.length>0){c.innerHTML=`<button class="btn btn-primary" onclick="start()">◉ Продолжить</button><button class="btn btn-ghost" onclick="reset()">↺ Сброс</button>`;}
+  else{c.innerHTML=`<button class="btn btn-primary" onclick="start()">◉ Запустить</button>`;}
+}
+function scrollBottom(){setTimeout(()=>$('logEnd').scrollIntoView({behavior:'smooth'}),60)}
+
+function showInfo(msg){clearMsg();const d=document.createElement('div');d.className='info-box';d.id='msgBox';d.textContent=msg;$('log').appendChild(d);scrollBottom()}
+function showError(msg){clearMsg();const d=document.createElement('div');d.className='error-box';d.id='msgBox';d.textContent='ошибка: '+msg;$('log').appendChild(d)}
+function clearMsg(){const e=$('msgBox');if(e)e.remove()}
+
+function $(id){return document.getElementById(id)}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+</script>
+</body>
+</html>
