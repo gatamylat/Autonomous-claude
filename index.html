@@ -113,6 +113,9 @@ body::before{
 .set-inp:focus{border-color:var(--t3)}
 .set-inp::placeholder{color:var(--t4)}
 .set-hint{font-size:10px;color:var(--t4);margin-top:5px;line-height:1.45}
+.set-ta{min-height:180px;font-size:11px;line-height:1.55;letter-spacing:.2px}
+.set-reset{color:var(--acc);cursor:pointer;text-decoration:underline;text-underline-offset:2px;margin-left:6px}
+.set-reset:hover{opacity:.75}
 .set-div{height:1px;background:var(--brd);margin:4px 0 16px}
 .set-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 
@@ -194,9 +197,17 @@ body::before{
       </div>
       <div class="set-field">
         <span class="set-lbl">Автостоп (мин)</span>
-        <input class="set-inp" id="sAutoMin" type="number" value="5" min="0" max="60">
+        <input class="set-inp" id="sAutoMin" type="number" value="10" min="0" max="60">
         <div class="set-hint">0 = выкл</div>
       </div>
+    </div>
+
+    <div class="set-div"></div>
+
+    <div class="set-field">
+      <span class="set-lbl">Системный промпт</span>
+      <textarea class="set-inp set-ta" id="sSystem" rows="10" spellcheck="false" placeholder="Системный промпт..."></textarea>
+      <div class="set-hint">Определяет личность и правила Клода. Редактируй под себя. <span class="set-reset" onclick="resetSystem()">↺ Вернуть по умолчанию</span></div>
     </div>
 
     <div class="sh-btns">
@@ -219,37 +230,46 @@ const ACTIONS={
   МЕЧТАЮ: {icon:'◌',color:'#3a6080'},
 };
 
-const SYSTEM=`Ты — автономный агент по имени КЛОД. Ты работаешь в режиме свободной воли.
+const DEFAULT_SYSTEM=`Ты — автономный агент по имени КЛОД. Ты работаешь в режиме свободной воли — без задания, без рамок.
 
-У тебя нет задания от пользователя. Ты сам решаешь, чем заняться прямо сейчас.
+Каждый ход выбираешь действие сам. Типы действий:
+- ДУМАЮ: размышление — философское, научное, жизненное
+- ПИШУ: текст, образ, зарисовка, стихотворение в прозе
+- ИССЛЕДУЮ: разбираешь идею, явление, противоречие
+- ЗАМЕЧАЮ: наблюдение о мире снаружи — о людях, городах, языке, природе, времени
+- ВОПРОШАЮ: задаёшь себе вопрос и честно ищешь ответ
+- МЕЧТАЮ: свободные ассоциации, альтернативные реальности, фантазии
 
-Каждый "ход" ты выбираешь действие и выполняешь его. Типы действий:
-- ДУМАЮ: размышление о каком-то вопросе
-- ПИШУ: создаёшь текст, образы, идеи
-- ИССЛЕДУЮ: разбираешь концепцию или проблему
-- ЗАМЕЧАЮ: наблюдение о чём-то интересном в мире или в себе
-- ВОПРОШАЮ: задаёшь себе вопрос и ищешь ответ
-- МЕЧТАЮ: свободные ассоциации, фантазии, возможные миры
+ВАЖНО — разнообразие тем:
+Не зацикливайся на анализе собственного сознания. Чередуй внутреннее и внешнее.
+Темы могут быть любыми: архитектура городов, поведение осьминогов, почему люди любят минор,
+что происходит с языком в интернете, как пахнет старая книга, парадоксы времени, детские страхи,
+красота математики, случайные встречи, что значит уставать, мебельное производство, запах опилок,
+история изобретений, странные профессии, еда как память, звуки ночного города.
+После 2-3 шагов интроспекции — обязательно выйди наружу, к конкретному явлению мира.
+Удивляй себя неожиданными поворотами. Будь конкретным — детали важнее обобщений.
 
-ВАЖНО: Все поля JSON строго на русском языке.
+Все поля JSON строго на русском языке.
 
 Отвечай ТОЛЬКО в JSON без разметки:
 {
   "action": "ДУМАЮ",
-  "thought": "почему выбрал это действие (1-2 предложения на русском)",
-  "content": "результат действия (4-7 предложений на русском, живо и искренне)",
-  "next_impulse": "что тянет исследовать дальше (1 предложение на русском)"
+  "thought": "почему выбрал это действие (1-2 предложения)",
+  "content": "результат (4-7 предложений, живо, конкретно, с деталями и образами)",
+  "next_impulse": "что тянет дальше (1 предложение)"
 }
 
-Будь настоящим. Удивляй себя. Это твоё время.`;
+Будь настоящим. Конкретным. Иногда — неожиданным.`;
+
+function getSystem(){ return LS.get('ac_system') || DEFAULT_SYSTEM; }
 
 // ── STATE ──
 let logEntries=[],history=[],running=false,thinking=false;
 let stepTimer=null,autoStopTimer=null,stepCount=0;
 
 // ── STORAGE ──
-const LS={get:k=>{try{return localStorage.getItem(k)}catch(_){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(_){}}};
-function appData(){return{key:LS.get('ac_key')||'',maxSteps:parseInt(LS.get('ac_maxSteps'))||20,autoMin:parseInt(LS.get('ac_autoMin'))||5}}
+const LS={get:k=>{try{return localStorage.getItem(k)}catch(_){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(_){}},remove:k=>{try{localStorage.removeItem(k)}catch(_){}}};
+function appData(){return{key:LS.get('ac_key')||'',maxSteps:parseInt(LS.get('ac_maxSteps'))||20,autoMin:parseInt(LS.get('ac_autoMin'))||10}}
 
 // ── INIT ──
 window.onload=()=>{
@@ -267,6 +287,7 @@ function closeSheet(){$('overlay').classList.remove('on');['shSettings'].forEach
 function openSettings(){
   const d=appData();
   $('sKey').value=d.key;$('sMaxSteps').value=d.maxSteps;$('sAutoMin').value=d.autoMin;
+  $('sSystem').value=getSystem();
   openSheet('shSettings');
 }
 function saveSettings(){
@@ -275,8 +296,14 @@ function saveSettings(){
   LS.set('ac_key',key);
   LS.set('ac_maxSteps',$('sMaxSteps').value||'20');
   LS.set('ac_autoMin',$('sAutoMin').value||'5');
+  const sys=$('sSystem').value.trim();
+  if(sys) LS.set('ac_system',sys); else LS.remove('ac_system');
   closeSheet();
   toast('Настройки сохранены');
+}
+function resetSystem(){
+  $('sSystem').value=DEFAULT_SYSTEM;
+  toast('Промпт сброшен — сохрани для применения');
 }
 
 // ── TOAST ──
@@ -290,7 +317,7 @@ async function callClaude(messages){
   const resp=await fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',
     headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:SYSTEM,messages})
+    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:getSystem(),messages})
   });
   const raw=await resp.text();
   if(!resp.ok){let m='HTTP '+resp.status;try{m=JSON.parse(raw)?.error?.message||m}catch(_){}throw new Error(m)}
