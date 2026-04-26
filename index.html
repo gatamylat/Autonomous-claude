@@ -321,6 +321,12 @@ window.onload=()=>{
   $('sMaxSteps').value=d.maxSteps;
   $('sAutoMin').value=d.autoMin;
   loadSessions();
+  // Version check — wipe old saved system prompt if outdated
+  const PROMPT_VERSION = '2';
+  if(LS.get('ac_prompt_ver') !== PROMPT_VERSION){
+    LS.remove('ac_system');
+    LS.set('ac_prompt_ver', PROMPT_VERSION);
+  }
   updateSeedBadge();
   if(!d.key) setTimeout(openSettings,500);
 };
