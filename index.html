@@ -45,9 +45,9 @@ background-size:48px 48px;pointer-events:none;z-index:0
 .hdr-title{font-size:24px;font-family:var(–fs);font-style:italic;color:var(–acc);line-height:1}
 .hdr-status{font-size:9px;color:var(–t3);letter-spacing:.8px;margin-top:6px}
 .hdr-right{display:flex;align-items:center;gap:8px;padding-bottom:4px}
-.icon-btn{width:34px;height:34px;border-radius:50%;border:1px solid var(–brd);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:border-color .15s,background .15s}
+.icon-btn{width:34px;height:34px;border-radius:50%;border:1px solid var(–brd2);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:border-color .15s,background .15s;color:var(–t2)}
 .icon-btn:hover,.icon-btn:active{background:rgba(0,0,0,.04);border-color:var(–brd2)}
-.icon-btn svg{width:15px;height:15px;stroke:var(–t3);stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.icon-btn svg{width:16px;height:16px;stroke:var(–t2);stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
 .hdr-div{height:1px;background:var(–brd);margin:0 20px}
 
 /* Main */
@@ -179,7 +179,7 @@ padding-bottom:var(–sb);max-height:88vh;overflow-y:auto
     </div>
     <div class="hdr-right">
       <button class="icon-btn" onclick="openSessions()" title="Сессии">
-        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="3" rx="1"/><rect x="3" y="10.5" width="18" height="3" rx="1"/><rect x="3" y="17" width="18" height="3" rx="1"/></svg>
+        <svg viewBox="0 0 24 24" style="stroke:none"><rect x="3" y="4" width="18" height="2.5" rx="1" fill="currentColor"/><rect x="3" y="10.75" width="18" height="2.5" rx="1" fill="currentColor"/><rect x="3" y="17" width="18" height="2.5" rx="1" fill="currentColor"/></svg>
       </button>
       <button class="icon-btn" onclick="openSettings()">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
