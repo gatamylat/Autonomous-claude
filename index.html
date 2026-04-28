@@ -281,16 +281,17 @@ padding-bottom:var(–sb);max-height:88vh;overflow-y:auto
 
 <div class="toast" id="toast"></div>
 
-<script>
+<script>var ALL_SHEETS=['shSettings','shSessions'];
+
 const ACTIONS={
-  ДУМАЮ:   {icon:'◉',color:'#3a7abf'},
-  ПИШУ:    {icon:'✍',color:'#8b5ca8'},
-  ИССЛЕДУЮ:{icon:'◎',color:'#2e8c6a'},
-  ЗАМЕЧАЮ: {icon:'◈',color:'#b07a20'},
-  ВОПРОШАЮ:{icon:'◇',color:'#a03560'},
-  МЕЧТАЮ: {icon:'◌',color:'#3a6080'},
-  РИСУЮ:   {icon:'▦',color:'#7a5c3a'},
-  ИЩУ:     {icon:'⊙',color:'#2e6a8c'},
+  ДУМАЮ:   {icon:'o',color:'#3a7abf'},
+  ПИШУ:    {icon:'~',color:'#8b5ca8'},
+  ИССЛЕДУЮ:{icon:'o',color:'#2e8c6a'},
+  ЗАМЕЧАЮ: {icon:'o',color:'#b07a20'},
+  ВОПРОШАЮ:{icon:'o',color:'#a03560'},
+  МЕЧТАЮ: {icon:'o',color:'#3a6080'},
+  РИСУЮ:   {icon:'#',color:'#7a5c3a'},
+  ИЩУ:     {icon:'@',color:'#2e6a8c'},
 };
 
 const DEFAULT_SYSTEM=`Ты — автономный агент по имени КЛОД. Это твоё время свободного мышления.
@@ -491,48 +492,34 @@ function exportSession(id){
   const s=sessions[id]||{};
   const entries=s.entries||[];
   if(!entries.length){ toast('Сессия пустая'); return; }
-
   const d=new Date(parseInt(id));
   const dateStr=d.getDate()+'.'+(d.getMonth()+1)+'.'+d.getFullYear()+' '+pad(d.getHours())+':'+pad(d.getMinutes());
   const seed=getSeed();
-
-  let text='АВТОНОМНЫЙ КЛОД
-';
-  text+='Сессия от '+dateStr+'
-';
-  if(seed) text+='Зерно: «'+seed+'»
-';
-  text+=entries.length+' шагов
-';
-  text+='─'.repeat(40)+'
-
-';
-
+  const nl='\n';
+  const lines=[];
+  lines.push('АВТОНОМНЫЙ КЛОД');
+  lines.push('Сессия от '+dateStr);
+  if(seed) lines.push('Зерно: «'+seed+'»');
+  lines.push(entries.length+' шагов');
+  lines.push('—'.repeat(32));
+  lines.push('');
   entries.forEach((e,i)=>{
-    text+='['+(i+1)+'] '+e.action+' · '+e.time+'
-';
-    if(e.thought) text+='↳ '+e.thought+'
-';
-    text+='
-'+(e.ascii||e.content)+'
-';
-    if(e.search_snippet) text+='
-[Найдено в сети] '+e.search_snippet+'
-';
-    if(e.next_impulse) text+='→ '+e.next_impulse+'
-';
-    text+='
-';
+    lines.push('['+(i+1)+'] '+e.action+' · '+e.time);
+    if(e.thought) lines.push('-> '+e.thought);
+    lines.push('');
+    lines.push(e.ascii||e.content||'');
+    if(e.search_snippet) lines.push('','[Найдено в сети] '+e.search_snippet);
+    if(e.next_impulse) lines.push('→ '+e.next_impulse);
+    lines.push('');
   });
-
-  navigator.clipboard.writeText(text.trim())
+  const text=lines.join(nl).trim();
+  navigator.clipboard.writeText(text)
     .then(()=>toast('Сессия скопирована ↑'))
     .catch(()=>{
-      // Fallback
       const ta=document.createElement('textarea');
       ta.value=text;ta.style.position='fixed';ta.style.opacity='0';
       document.body.appendChild(ta);ta.select();
-      document.execCommand('copy');
+      try{document.execCommand('copy');}catch(_){}
       document.body.removeChild(ta);
       toast('Сессия скопирована ↑');
     });
@@ -592,18 +579,11 @@ let toastT=null;
 function toast(msg){const el=$('toast');el.textContent=msg;el.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('on'),2400)}
 
 // ── API ──
-async function callClaude(messages){
+async function apiCall(messages, useTools){
   const{key}=appData();
   if(!key)throw new Error('API ключ не задан — открой настройки ⚙');
-
-  const body={
-    model:'claude-sonnet-4-20250514',
-    max_tokens:2000,
-    system:getSystem(),
-    messages,
-    tools:[{type:'web_search_20250305',name:'web_search'}]
-  };
-
+  const body={model:'claude-sonnet-4-20250514',max_tokens:2000,system:getSystem(),messages};
+  if(useTools) body.tools=[{type:'web_search_20250305',name:'web_search'}];
   const resp=await fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',
     headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
@@ -611,35 +591,56 @@ async function callClaude(messages){
   });
   const raw=await resp.text();
   if(!resp.ok){let m='HTTP '+resp.status;try{m=JSON.parse(raw)?.error?.message||m}catch(_){}throw new Error(m)}
+  return JSON.parse(raw);
+}
 
-  const data=JSON.parse(raw);
+async function callClaude(messages){
+  // First call — with web_search tool available
+  let data=await apiCall(messages,true);
 
-  // Collect all text blocks (model may interleave tool use + text)
-  let fullText='';
-  let searchSnippet=null, searchUrl=null;
+  let searchSnippet=null,searchUrl=null;
 
-  for(const block of (data.content||[])){
-    if(block.type==='text') fullText+=block.text;
-    // Extract search result if present
-    if(block.type==='tool_result'||block.type==='web_search_tool_result'){
-      try{
-        const res=typeof block.content==='string'?JSON.parse(block.content):block.content;
-        if(Array.isArray(res)&&res[0]){
-          searchSnippet=res[0].snippet||res[0].description||null;
-          searchUrl=res[0].url||null;
-        }
-      }catch(_){}
+  // Handle tool_use turn (model wants to search)
+  if(data.stop_reason==='tool_use'){
+    const toolUseBlock=data.content.find(b=>b.type==='tool_use');
+    // Build tool_result message
+    const assistantMsg={role:'assistant',content:data.content};
+    // Second call — send tool result as empty (server-side search already done)
+    // Actually for web_search_20250305 the search is server-executed;
+    // we just need to send back the tool_result with the content from the response
+    const toolResultContent=data.content
+      .filter(b=>b.type==='web_search_tool_result'||b.type==='tool_result')
+      .map(b=>({type:'tool_result',tool_use_id:toolUseBlock?.id||b.tool_use_id||'',content:b.content||''}));
+
+    // Extract search snippet from tool result blocks
+    for(const b of data.content){
+      if(b.type==='web_search_tool_result'||b.type==='tool_result'){
+        try{
+          const res=Array.isArray(b.content)?b.content:(typeof b.content==='string'?JSON.parse(b.content):[]);
+          if(Array.isArray(res)&&res[0]){
+            searchSnippet=(res[0].snippet||res[0].description||res[0].text||'').slice(0,300)||null;
+            searchUrl=res[0].url||null;
+          }
+        }catch(_){}
+      }
     }
+
+    const msgs2=[...messages,assistantMsg,{role:'user',content:toolResultContent.length?toolResultContent:[{type:'tool_result',tool_use_id:toolUseBlock?.id||'search',content:'Search completed.'}]}];
+    data=await apiCall(msgs2,false);
   }
 
-  // Parse JSON from the text
+  // Collect text from final response
+  let fullText='';
+  for(const block of(data.content||[])){
+    if(block.type==='text') fullText+=block.text;
+  }
+
   let parsed=null;
-  try{parsed=JSON.parse(fullText.replace(/\`\`\`json|\`\`\`/g,'').trim())}catch(_){
+  try{parsed=JSON.parse(fullText.replace(/```json|```/g,'').trim())}catch(_){
     const m=fullText.match(/\{[\s\S]*\}/);
     if(m){try{parsed=JSON.parse(m[0])}catch(_){}}
   }
   if(!parsed)throw new Error('Не удалось разобрать ответ');
-
   if(searchSnippet) parsed.search_snippet=searchSnippet;
   if(searchUrl) parsed.search_url=searchUrl;
   return parsed;
@@ -662,7 +663,7 @@ async function step(){
     stepCount++;thinking=false;
     renderLog();updateStatus();scrollBottom();clearMsg();
     const{maxSteps}=appData();
-    if(maxSteps>0&&stepCount>=maxSteps){stop();showInfo(`🛑 Лимит ${maxSteps} шагов достигнут`);return;}
+    if(maxSteps>0&&stepCount>=maxSteps){stop();showInfo(`[ стоп ] Лимит ${maxSteps} шагов достигнут`);return;}
     saveSessions();renderSessionsBar();
     if(running)stepTimer=setTimeout(step,3800);
   }catch(e){thinking=false;showError(e.message);stop();}
@@ -675,7 +676,7 @@ function start(){
   if(!key){openSettings();toast('Сначала введи API ключ');return;}
   running=true;updateControls();$('scanline').classList.add('active');
   const{autoMin}=appData();
-  if(autoMin>0){clearTimeout(autoStopTimer);autoStopTimer=setTimeout(()=>{stop();showInfo(`⏱ Автостоп: прошло ${autoMin} мин`);},autoMin*60*1000);}
+  if(autoMin>0){clearTimeout(autoStopTimer);autoStopTimer=setTimeout(()=>{stop();showInfo(`[ время ] Автостоп: прошло ${autoMin} мин`);},autoMin*60*1000);}
   step();
 }
 function stop(){
@@ -714,7 +715,7 @@ function renderLog(){
 
 ```
       : `<div class="entry-content">${esc(e.content)}</div>`}
-    ${e.search_snippet?`<div class="entry-search-result">${esc(e.search_snippet)}${e.search_url?`<a href="${esc(e.search_url)}" target="_blank" rel="noopener">↗ ${esc(e.search_url)}</a>`:''}</div>`:``}
+    ${e.search_snippet?`<div class="entry-search-result">${esc(e.search_snippet)}${e.search_url?`<a href="${esc(e.search_url)}" target="_blank" rel="noopener">-> ${esc(e.search_url)}</a>`:''}</div>`:``}
     ${e.next_impulse?`<div class="entry-impulse"><span style="color:${cfg.color}">→</span> ${esc(e.next_impulse)}</div>`:''}
   </div>`;
 c.appendChild(div);
@@ -725,7 +726,7 @@ c.appendChild(div);
 function renderThinking(){
 removeThinking();
 const div=document.createElement(‘div’);div.className=‘thinking-row’;div.id=‘thinkEl’;
-div.innerHTML=`<div class="entry-line"><div class="thinking-icon">◌</div></div><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`;
+div.innerHTML=`<div class="entry-line"><div class="thinking-icon">o</div></div><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`;
 $(‘log’).appendChild(div);scrollBottom();
 }
 function removeThinking(){const el=$(‘thinkEl’);if(el)el.remove()}
@@ -739,9 +740,9 @@ $(‘statusLine’).textContent=`свободная воля${lim}${cost} · ${s
 }
 function updateControls(){
 const c=$(‘ctrlBar’);
-if(running){c.innerHTML=`<button class="btn btn-stop" onclick="stop()">◎ Пауза</button>`;}
-else if(logEntries.length>0){c.innerHTML=`<button class="btn btn-primary" onclick="start()">◉ Продолжить</button><button class="btn btn-ghost" onclick="reset()">↺ Сброс</button>`;}
-else{c.innerHTML=`<button class="btn btn-primary" onclick="start()">◉ Запустить</button>`;}
+if(running){c.innerHTML=`<button class="btn btn-stop" onclick="stop()">o Пауза</button>`;}
+else if(logEntries.length>0){c.innerHTML=`<button class="btn btn-primary" onclick="start()">o Продолжить</button><button class="btn btn-ghost" onclick="reset()"><< Сброс</button>`;}
+else{c.innerHTML=`<button class="btn btn-primary" onclick="start()">o Запустить</button>`;}
 }
 function scrollBottom(){setTimeout(()=>$(‘logEnd’).scrollIntoView({behavior:‘smooth’}),60)}
 
